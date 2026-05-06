@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>EasyRupee Loan — Apr vs Mar Comparison</title>
+  <meta name="description" content="Monthly comparison dashboard showing April 2026 vs March 2026 collection performance by branch."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-database-compat.js"></script>
+  
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<!-- ── NAVBAR ── -->
+<header class="navbar">
+  <div class="navbar-brand">
+    <div class="brand-icon">₹</div>
+    <div>
+      <div class="brand-title">EasyRupee Loan</div>
+      <div class="brand-sub">Monthly Collections Comparison</div>
+    </div>
+  </div>
+  <div class="nav-months">
+    <span class="month-pill apr">● Apr-2026</span>
+    <span class="vs-badge">VS</span>
+    <span class="month-pill mar">● Mar-2026</span>
+  </div>
+  <div class="nav-right">
+    <label class="upload-btn" id="uploadBtnLabel" for="fileUpload">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      ☁️ Upload to Cloud
+    </label>
+    <input type="file" id="fileUpload" accept=".xlsx,.xls" style="display:none"/>
+    <div class="live-dot-wrap"><span class="live-dot"></span><span id="cloudStatus">LIVE</span></div>
+  </div>
+</header>
+
+<!-- ── SUMMARY BANNER ── -->
+<section class="summary-banner" id="summaryBanner">
+  <div class="summary-card" id="s-cases">
+    <div class="summary-icon">📋</div>
+    <div>
+      <div class="summary-label">Total Cases (Apr vs Mar)</div>
+      <div class="summary-value"><span class="apr-val" id="sm-aprCases">719</span> vs <span class="mar-val" id="sm-marCases">619</span></div>
+      <div class="summary-change positive" id="sm-casesDelta">▲ +100 (+16.2%)</div>
+    </div>
+  </div>
+  <div class="summary-card" id="s-repay">
+    <div class="summary-icon">💰</div>
+    <div>
+      <div class="summary-label">Total Repay (Apr vs Mar)</div>
+      <div class="summary-value"><span class="apr-val" id="sm-aprRepay">₹2.33 Cr</span> vs <span class="mar-val" id="sm-marRepay">₹2.04 Cr</span></div>
+      <div class="summary-change positive" id="sm-repayDelta">▲ +14.6%</div>
+    </div>
+  </div>
+  <div class="summary-card" id="s-coll">
+    <div class="summary-icon">📉</div>
+    <div>
+      <div class="summary-label">Avg Collection % (Apr vs Mar)</div>
+      <div class="summary-value"><span class="apr-val" id="sm-aprColl">80.98%</span> vs <span class="mar-val" id="sm-marColl">88.00%</span></div>
+      <div class="summary-change negative" id="sm-collDelta">▼ −7.02 pp (Needs Attention)</div>
+    </div>
+  </div>
+  <div class="summary-card" id="s-open">
+    <div class="summary-icon">⚠️</div>
+    <div>
+      <div class="summary-label">Open Cases (Apr vs Mar)</div>
+      <div class="summary-value"><span class="apr-val" id="sm-aprOpen">156</span> vs <span class="mar-val" id="sm-marOpen">88</span></div>
+      <div class="summary-change negative" id="sm-openDelta">▼ +68 cases uncollected (+77.3%)</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── KEY POINTS & INSIGHTS ── -->
+<section class="insights-section">
+  <div class="insights-col" id="keyPointsCol">
+    <h2 class="section-heading">🔑 Key Points</h2>
+    <ul class="keypoints-list" id="keyPointsList"></ul>
+  </div>
+  <div class="insights-col" id="lacksCol">
+    <h2 class="section-heading warn">⚠️ Where We Lack</h2>
+    <ul class="lacks-list" id="lacksList"></ul>
+  </div>
+</section>
+
+<!-- ── CHARTS GRID ── -->
+<main class="charts-grid">
+
+  <!-- Chart 1: Total Repay Comparison -->
+  <section class="chart-card">
+    <div class="chart-card-hdr">
+      <div>
+        <h2 class="chart-title">Total Repay by Branch</h2>
+        <p class="chart-sub">April vs March — actual ₹ collected</p>
+      </div>
+    </div>
+    <div class="chart-wrap" style="height:340px">
+      <canvas id="repayChart"></canvas>
+    </div>
+  </section>
+
+  <!-- Chart 2: Collection % -->
+  <section class="chart-card">
+    <div class="chart-card-hdr">
+      <div>
+        <h2 class="chart-title">Collection % by Branch</h2>
+        <p class="chart-sub">April vs March — efficiency rate</p>
+      </div>
+    </div>
+    <div class="chart-wrap" style="height:340px">
+      <canvas id="collChart"></canvas>
+    </div>
+  </section>
+
+  <!-- Chart 3: Open vs Closed Cases -->
+  <section class="chart-card">
+    <div class="chart-card-hdr">
+      <div>
+        <h2 class="chart-title">Open vs Closed Cases</h2>
+        <p class="chart-sub">April — case status breakdown per branch</p>
+      </div>
+    </div>
+    <div class="chart-wrap" style="height:320px">
+      <canvas id="casesChart"></canvas>
+    </div>
+  </section>
+
+  <!-- Chart 4: MoM Growth Radar -->
+  <section class="chart-card">
+    <div class="chart-card-hdr">
+      <div>
+        <h2 class="chart-title">Collection % Drop / Growth</h2>
+        <p class="chart-sub">April vs March — percentage point change</p>
+      </div>
+    </div>
+    <div class="chart-wrap" style="height:320px">
+      <canvas id="deltaChart"></canvas>
+    </div>
+  </section>
+
+  <!-- Chart 5: Pending Amount -->
+  <section class="chart-card wide">
+    <div class="chart-card-hdr">
+      <div>
+        <h2 class="chart-title">Total Pending Amount by Branch</h2>
+        <p class="chart-sub">April vs March — uncollected amounts</p>
+      </div>
+    </div>
+    <div class="chart-wrap" style="height:300px">
+      <canvas id="pendingChart"></canvas>
+    </div>
+  </section>
+
+  <!-- Data Table -->
+  <section class="chart-card wide" id="tableSection">
+    <div class="chart-card-hdr">
+      <div>
+        <h2 class="chart-title">Full Comparison Table</h2>
+        <p class="chart-sub">April 2026 vs March 2026 — branch-wise breakdown</p>
+      </div>
+      <button class="export-btn" id="exportBtn">⬇ Export CSV</button>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th rowspan="2">Branch</th>
+            <th colspan="5" class="apr-hdr">April 2026</th>
+            <th colspan="5" class="mar-hdr">March 2026</th>
+            <th rowspan="2" class="mom-hdr">MoM<br/>Coll %</th>
+          </tr>
+          <tr>
+            <th>Cases</th><th>Open</th><th>Closed</th><th>Repay (₹)</th><th>Coll %</th>
+            <th>Cases</th><th>Open</th><th>Closed</th><th>Repay (₹)</th><th>Coll %</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <span>EasyRupee Loan · Apr vs Mar 2026 · Last Cloud Update: <strong id="sourceFile">Loading from Cloud...</strong></span>
+  <span>Firebase Cloud Database Connected</span>
+</footer>
+
+<div id="toast"></div>
+<script src="app.js?v=3"></script>
+</body>
+</html>
